@@ -2,9 +2,9 @@
 {
     public class RecipeFilters
     {
-        public int Limit { get; set; }
-        public int Offset { get; set; }
-        public string Name { get; set; }
+        public int? Limit { get; set; }
+        public int? Offset { get; set; }
+        public string? Name { get; set; }
         public IEnumerable<int>? TagIds { get; set; }
         public bool? MustBeVegitarian { get; set; }
         public bool? MustBeDairyFree { get; set; }
@@ -14,9 +14,10 @@
         public DateTime? NotMadeSinceDate { get; set; }
     }
 
-    public class RecipeReferenceInfo
+    public class RecipeSummary
     {
-        public RecipeReferenceInfo(int id, string name, IEnumerable<string> tags, IEnumerable<string> ingredients)
+        public RecipeSummary() { }
+        public RecipeSummary(int id, string name, IEnumerable<string> tags, IEnumerable<string> ingredients)
         {
             Id = id;
             Name = name;

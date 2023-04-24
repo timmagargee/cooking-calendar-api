@@ -78,6 +78,10 @@ builder.Services.AddAuthentication()
         };
     });
 
+builder.Services.AddScoped<IRecipeRepository, RecipeRepository>();
+builder.Services.AddScoped<ICalendarRepository, CalendarRepository>();
+builder.Services.AddScoped<IIngredientRepository, IngredientRepository>();
+
 
 var app = builder.Build();
 

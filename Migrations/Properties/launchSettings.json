@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "Migrations(Development -u)": {
+      "commandName": "Project",
+      "commandLineArgs": "-u",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "Migrations(Development -d)": {
+      "commandName": "Project",
+      "commandLineArgs": "-d",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

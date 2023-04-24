@@ -5,9 +5,9 @@ namespace CookingCalendarApi.Extensions
 {
     public static class ClaimsPrincipalExtensions
     {
-        public static string GetUserId(this ClaimsPrincipal claimsPrincipal)
+        public static int GetUserId(this ClaimsPrincipal claimsPrincipal)
         {
-            return GetClaimStringItemOrEmpty(claimsPrincipal, AuthConstants.UserId);
+            return int.Parse(GetClaimStringItemOrEmpty(claimsPrincipal, AuthConstants.UserId));
         }
 
         private static string GetClaimStringItemOrEmpty(ClaimsPrincipal claimsPrincipal, string claimName)
