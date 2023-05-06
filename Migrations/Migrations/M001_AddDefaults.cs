@@ -7,7 +7,7 @@ namespace HubDatabaseMigrations.migrations
     {
         public override void Up()
         {
-            Alter.Column("ServingSize").OnTable("Recipes").AsInt16().NotNullable().WithDefaultValue(1);
+            Alter.Column("Servings").OnTable("Recipes").AsInt16().NotNullable().WithDefaultValue(1);
 
             Alter.Table("RecipeIngredients")
                 .AddColumn("Description").AsString(32).Nullable();
@@ -35,7 +35,7 @@ namespace HubDatabaseMigrations.migrations
 
             Delete.Column("Description").FromTable("RecipeIngredients");
 
-            Alter.Column("ServingSize").OnTable("Recipes").AsInt16().NotNullable();
+            Alter.Column("Servings").OnTable("Recipes").AsInt16().NotNullable();
         }
     }
 }

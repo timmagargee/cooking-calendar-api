@@ -35,9 +35,11 @@ namespace CookingCalendarApi.Repositories
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             return await conn.QuerySingleAsync<int>(@"
-                INSERT INTO Recipes ([UserId], [Name])
+                INSERT INTO Recipes ([UserId], [Name], [AreMeasurementsStandard])
                 OUTPUT inserted.[Id]
-                VALUES (@UserId, @Name);"
+                VALUES (@UserId
+                    , @Name
+                    , (SELECT [isDefaultMeasurementStandard] FROM Users WHERE [Id] = @UserId));"
                 , new { userId, recipe.Name }
             );
         }
@@ -47,7 +49,7 @@ namespace CookingCalendarApi.Repositories
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             var multi = await conn.QueryMultipleAsync(@"
-                SELECT [Id], [Name], [Description], [ServingSize], [AreMeasurementsStandard]
+                SELECT [Id], [Name], [Description], [Servings], [AreMeasurementsStandard]
                 FROM [dbo].[Recipes]
                 WHERE [Id] = @RecipeId;
 
@@ -103,7 +105,7 @@ namespace CookingCalendarApi.Repositories
                 INNER JOIN [dbo].[Tags] t ON rt.[TagId] = t.[Id]
                 WHERE rt.RecipeId IN (SELECT [Id] FROM #TT);
 
-                SELECT ri.[RecipeId], i.[Name], ri.[SortOrder]
+                SELECT ri.[RecipeId], i.[Name], ri.[SortOrder], i.[isMeat], i.[isDairy], i.[isGluten]
                 FROM [dbo].[RecipeIngredients] ri
                 INNER JOIN [dbo].[UserIngredients] ui ON ri.[IngredientId] = ui.[Id]
                 INNER JOIN [dbo].[Ingredients] i ON ui.[IngredientId] = i.[Id]
@@ -113,12 +115,18 @@ namespace CookingCalendarApi.Repositories
 
             var baseRecipes = multi.Read<IdNameDto>();
             var tags = multi.Read<RecipeBasicItem>();
-            var ingredients = multi.Read<RecipeBasicItem>();
+            var ingredients = multi.Read<RecipeIngredientWithDietaryInfo>();
 
             var recipes = new List<RecipeSummary>();
             foreach (var recipe in baseRecipes)
             {
-                recipes.Add(new RecipeSummary(recipe.Id, recipe.Name, tags.GetNameList(recipe.Id), ingredients.GetNameList(recipe.Id)));
+                var ings = ingredients.Where(x => x.RecipeId == recipe.Id);
+                recipes.Add(new RecipeSummary(recipe.Id, recipe.Name, tags.GetNameList(recipe.Id), ings.GetNameList(recipe.Id)
+                    , ings.All(x => !x.isMeat)
+                    , ings.All(x => !x.isDairy)
+                    , ings.All(x => !x.isGluten)
+                    )
+                );
             }
 
             return recipes;
@@ -175,14 +183,14 @@ namespace CookingCalendarApi.Repositories
                 UPDATE [dbo].[Recipes] SET
 	                [Name] = @Name
 	                , [Description] = @Description
-	                , [ServingSize] = @ServingSize
+	                , [Servings] = @Servings
 	                , [AreMeasurementsStandard] = @AreMeasurementsStandard
                 WHERE [Id] = @RecipeId;
 
                 DELETE FROM [dbo].[RecipeTags] WHERE [RecipeId] = @RecipeId;
                 DELETE FROM [dbo].[RecipeIngredients] WHERE [RecipeId] = @RecipeId;
                 DELETE FROM [dbo].[Steps] WHERE [RecipeId] = @RecipeId;"
-                , new { RecipeId = recipe.Id, recipe.Name, recipe.Description, recipe.ServingSize, recipe.AreMeasurementsStandard }
+                , new { RecipeId = recipe.Id, recipe.Name, recipe.Description, recipe.Servings, recipe.AreMeasurementsStandard }
                 , trans
             );
 

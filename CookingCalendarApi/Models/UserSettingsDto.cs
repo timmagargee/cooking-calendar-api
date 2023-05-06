@@ -2,17 +2,15 @@
 {
     public class UserSettingsDto
     {
-        public UserSettingsDto(bool isDefaultMeasurementStandard, bool isDarkMode, bool isMonthDefaultView, IEnumerable<Category> categories)
-        {
-            this.IsDefaultMeasurementStandard = isDefaultMeasurementStandard;
-            this.IsDarkMode = isDarkMode;
-            this.IsMonthDefaultView = isMonthDefaultView;
-            Categories = categories;
-        }
-
+        public int? Id { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string Username { get; set; }
         public bool IsDefaultMeasurementStandard { get; set; }
         public bool IsDarkMode { get; set; }
         public bool IsMonthDefaultView { get; set; }
-        public IEnumerable<Category> Categories { get; set; }
+        public int? DefaultShoppingDay { get; set; }
+        public int? DefaultServings { get; set; }
     }
 }

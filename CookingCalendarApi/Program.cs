@@ -81,6 +81,8 @@ builder.Services.AddAuthentication()
 builder.Services.AddScoped<IRecipeRepository, RecipeRepository>();
 builder.Services.AddScoped<ICalendarRepository, CalendarRepository>();
 builder.Services.AddScoped<IIngredientRepository, IngredientRepository>();
+builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
+builder.Services.AddScoped<IShoppingRepository, ShoppingRepository>();
 
 
 var app = builder.Build();

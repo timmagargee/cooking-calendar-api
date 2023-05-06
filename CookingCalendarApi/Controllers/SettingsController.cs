@@ -1,4 +1,6 @@
 ﻿using CookingCalendarApi.Enums;
+using CookingCalendarApi.Extensions;
+using CookingCalendarApi.Interfaces;
 using CookingCalendarApi.Models;
 using CookingCalendarApi.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -9,8 +11,8 @@ namespace CookingCalendarApi.Controllers
     [Route("settings")]
     public class SettingsController : ControllerBase
     {
-        private readonly IRecipeRepository _settingsRepository;
-        public SettingsController(IRecipeRepository settingsRepository)
+        private readonly ISettingsRepository _settingsRepository;
+        public SettingsController(ISettingsRepository settingsRepository, IAuthRepository authRepo)
         {
             _settingsRepository = settingsRepository;
         }
@@ -18,34 +20,30 @@ namespace CookingCalendarApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSettings()
         {
-            //return BadRequest("User does not exist");
-
-            return Ok(new UserSettingsDto(true, true, false,
-                new List<Category>()
-                {
-                    //new Category(1, "Mystery", DayOfWeek.Monday, CategoryType.Random, null, null),
-                    //new Category(1, "Taco Tuesday", DayOfWeek.Tuesday, CategoryType.Tag, 1, null),
-                    //new Category(1, "Chicken Day", DayOfWeek.Thursday, CategoryType.Ingredient, null, 1),
-                    //new Category(1, "Take Out", DayOfWeek.Sunday, CategoryType.Unplanned, null, null)
-                }
-            ));
+            return Ok(await _settingsRepository.GetUserSettings(User.GetUserId()));
         }
 
         [HttpPut]
-        public IActionResult UpdateSettings(UserSettingsDto settings)
+        public async Task<IActionResult> UpdateSettings(UserSettingsDto settings)
         {
-            //return BadRequest("User does not exist");
+            settings.TrimAllStrings();
+            settings.Id = User.GetUserId();
 
-            //        return Ok(new UserSettings(false, false, true,
-            //new List<Category>()
-            //{
-            //                new Category(null, "Mystery", DayOfWeek.Monday, CategoryType.Random, null, null),
-            //                new Category(null, "Taco Tuesday", DayOfWeek.Tuesday, CategoryType.Tag, 1, null),
-            //                new Category(null, "Chicken Day", DayOfWeek.Thursday, CategoryType.Ingredient, null, 1),
-            //                new Category(null, "Take Out", DayOfWeek.Sunday, CategoryType.Unplanned, null, null)
-            //}
-            //));
+            await _settingsRepository.UpdateUserSettings(settings);
             return NoContent();
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> DeleteSettings()
+        {
+            await _settingsRepository.DeleteUserSettings(User.GetUserId());
+            return NoContent();
+        }
+
+        [HttpGet("username/{username}/valid")]
+        public async Task<IActionResult> Get([FromRoute] string username)
+        {
+            return Ok(await _settingsRepository.DoesUsernameExist(User.GetUserId(), username));
         }
     }
 }

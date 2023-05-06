@@ -1,5 +1,9 @@
-﻿using CookingCalendarApi.Enums;
+﻿using CookingCalendarApi.DomainModels;
+using CookingCalendarApi.Enums;
+using CookingCalendarApi.Extensions;
 using CookingCalendarApi.Models;
+using CookingCalendarApi.Repositories;
+using CookingCalendarApi.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -9,58 +13,59 @@ namespace CookingCalendarApi.Controllers
     [Route("shopping")]
     public class ShoppingController : ControllerBase
     {
-        private ShoppingList _shoppingList = new ShoppingList(1, new DateOnly(2023, 3, 23), new DateOnly(2023, 3, 31), DateTime.Now,
-            new List<GeneratedItem>()
-            {
-                new GeneratedItem(1, false, 1, "Ground Beef", 3, MeasurementType.Lb),
-                new GeneratedItem(2, true, 1, "Cheddar Cheese", 12, MeasurementType.Oz)
-            },
-            new List<EnteredItem>()
-            {
-                new EnteredItem(1, false, "Mountain Dew", ShoppingCategory.Drink),
-                new EnteredItem(2, true, "Tortilla Chips", ShoppingCategory.Snack),
-            }
-        );
+        private readonly IShoppingRepository _shoppingRepository;
+        private readonly ISettingsRepository _settingsRepository;
 
-        [HttpGet(Name = "ShoppingList")]
-        public IActionResult GetShoppingList()
+        public ShoppingController(IShoppingRepository shoppingRepository, ISettingsRepository settingsRepository)
         {
-            try
-            {
-                if (false)
-                {
-                    throw new InvalidDataException();
-                }
+            _shoppingRepository = shoppingRepository;
+            _settingsRepository = settingsRepository;
+        }
 
-                return Ok(_shoppingList);
-            }
-            catch (InvalidDataException)
-            {
-                return BadRequest("Recipe with given Id could not be found");
-            }
+        [HttpGet]
+        public async Task<IActionResult> GetShoppingList()
+        {
+            return Ok(await _shoppingRepository.GetUserShoppingList(User.GetUserId()));
         }
 
         [HttpPost]
-        public IActionResult GenerateShoppingList([FromBody] DateFilter filters)
+        public async Task<IActionResult> GenerateShoppingList([FromBody] DateFilter filters)
         {
             if (filters.StartDate.CompareTo(filters.EndDate) > 0)
             {
                 return BadRequest("Start date must come before end date");
             }
-            return Created(nameof(GetShoppingList), _shoppingList);
+
+            //var generator = new ShoppingListGenerator(new List<ShoppingIngredient>() { new ShoppingIngredient() {
+            //    IngredientId = 1,
+            //    Amount = new RecipeAmount(){ Amount = 1, Measurement = MeasurementType.Tsp}
+            //} });
+            var userId = User.GetUserId();
+            var settings = await _settingsRepository.GetUserSettings(userId);
+            var ingredients = await _shoppingRepository.GetShoppingIngredients(userId, filters);
+            var generator = new ShoppingListGenerator(ingredients);
+            var items = generator.CreateShoppingList(settings.DefaultServings).OrderBy(x => x.IngredientId);
+
+            var shoppingListId = await _shoppingRepository.AddOrUpdateShoppingList(userId, filters);
+            await _shoppingRepository.DeleteGeneratedItems(shoppingListId);
+            await _shoppingRepository.AddGeneratedItems(shoppingListId, items);
+            return Ok();
+            //return Created(nameof(GetShoppingList), _shoppingList);
         }
 
 
-        [HttpPut("{id}")]
-        public IActionResult UpdateShoppingList([FromRoute] int id, [FromBody] object updates)
+        [HttpPut("")]
+        public async Task<IActionResult> UpdateShoppingList([FromBody] ShoppingListDto list)
         {
-            //if (updates.EnteredItemsToUpdate != null && updates.EnteredItemsToUpdate.Any(x => x.Id == -1))
-            //{
-            //    return BadRequest("Entered Item Id did not exist");
-            //}
-            var test = JsonSerializer.Deserialize<ShoppingList>(updates.ToString());
-            return Ok(new ShoppingListUpdate(1, new List<int>() { 1, 2 }, new List<int>() { 3}, new List<int>() { 4 }, new List<EnteredItem>() { new EnteredItem(1, true, "Mountain Dew", ShoppingCategory.Drink)}, new List<int>() { 1 }));
-            //return NoContent();
+            await _shoppingRepository.UpdateShoppingList(list);
+            return Ok();
+        }
+
+        [HttpDelete("{id}/checked")]
+        public async Task<IActionResult> ClearCheckedItems([FromRoute] int id)
+        {
+            await _shoppingRepository.ClearChecked(id);
+            return Ok();
         }
     }
 }

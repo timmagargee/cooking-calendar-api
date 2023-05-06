@@ -14,27 +14,29 @@ namespace CookingCalendarApi.Controllers
     {
         private readonly ICalendarRepository _calendarRepository;
         private readonly IRecipeRepository _recipeRepository;
-        public CalendarController(ICalendarRepository calendarRepository, IRecipeRepository recipeRepository)
+        private readonly ISettingsRepository _settingsRepository;
+        public CalendarController(ICalendarRepository calendarRepository, IRecipeRepository recipeRepository, ISettingsRepository settingsRepository)
         {
             _calendarRepository = calendarRepository;
             _recipeRepository = recipeRepository;
+            _settingsRepository = settingsRepository;
         }
-        //private Calendar cal = new Calendar(1, DateTime.Now, new List<Meal>()
-        //    {
-        //        new Meal(1, new DateOnly(2023,3,29), false, new RecipeSummary(1, "Tacos", new List<string>() { "Mexican" }, new List<string>()
-        //        {
-        //            "Ground Beef", "Lettuce", "Cheddar Cheese", "Taco Shells",
-        //        })),
-        //        new Meal(2, new DateOnly(2023, 3, 31), true, new RecipeSummary(1, "Grilled Cheese", new List<string>() { "Easy" }, new List<string>()
-        //        {
-        //            "White Bread", "American Cheese", "Butter",
-        //        }))
-        //    });
 
         [HttpGet("")]
         public async Task<IActionResult> GetCalendar()
         {
             return Ok(await _calendarRepository.GetCalendar(User.GetUserId()));
+        }
+
+        [HttpGet("all/meals")]
+        public async Task<IActionResult> GetCalendarMeals([FromQuery] DateFilter filters)
+        {
+            if (filters.StartDate.CompareTo(filters.EndDate) > 0)
+            {
+                return BadRequest("Start date must come before end date");
+            }
+
+            return Ok(await _calendarRepository.GetAllMealsInRange(User.GetUserId(), filters));
         }
 
         [HttpGet("{calendarId}/meals")]
@@ -57,12 +59,7 @@ namespace CookingCalendarApi.Controllers
             {
                 return BadRequest("Start date must come before end date");
             }
-            //var extraInfoFilters = new DateFilter()
-            //{
-            //    //Extra 2 weeks to help eliminate repeat meals
-            //    StartDate = filters.StartDate.Subtract(TimeSpan.FromDays(14)),
-            //    EndDate = filters.EndDate
-            //};
+
             var userId = User.GetUserId();
             var cal = await _calendarRepository.GetCalendar(userId);
 

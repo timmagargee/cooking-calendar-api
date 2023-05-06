@@ -2,8 +2,8 @@
 {
     public enum ShoppingCategory
     {
-        Other = 1,
-        Drink = 2,
-        Snack = 3
+        Other = 0,
+        Drink = 1,
+        Snack = 2
     }
 }

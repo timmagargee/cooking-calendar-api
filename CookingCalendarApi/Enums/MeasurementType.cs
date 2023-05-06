@@ -7,7 +7,7 @@
         Tsp = 1,
         Tbl = 2,
         FlOz = 3,
-        Gill = 4, //??
+        //Gill = 4, //??
         Cup = 5,
         Pt = 6,
         Qt = 7,
@@ -23,10 +23,14 @@
         ML = 101,
         L = 102,
         DL = 103,
-        MM = 104,
-        CM = 105,
-        M = 106,
-        Celcius = 107
+
+        G = 104,
+        Kg = 105,
+
+        MM = 106,
+        CM = 107,
+        M = 108,
+        Celcius = 109,
         #endregion
     }
 }

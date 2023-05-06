@@ -14,7 +14,14 @@ namespace CookingCalendarApi.Repositories
             _sqlConfig = sqlConfig;
         }
 
-        public async Task<int?> Login(User user)
+        public async Task<IEnumerable<string>> GetUsernamesInUse()
+        {
+            using var conn = new SqlConnection(_sqlConfig.ConnectionString);
+
+            return await conn.QueryAsync<string>("SELECT [UserName] FROM [dbo].[Users]");
+        }
+
+        public async Task<int> Login(User user)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
@@ -23,7 +30,21 @@ namespace CookingCalendarApi.Repositories
                 user.Username, user.Password,
             }, commandType: CommandType.StoredProcedure);
 
+            if(userId == 0)
+            {
+                userId = -1;
+            }
+
             return userId;
+        }
+
+        public async Task<int> ChangePassword(ChangePasswordDto dto)
+        {
+            using var conn = new SqlConnection(_sqlConfig.ConnectionString);
+
+            var responseType = await conn.QuerySingleOrDefaultAsync<int>("UpdatePassword", dto, commandType: CommandType.StoredProcedure);
+
+            return responseType;
         }
 
         public async Task<int?> CreateUser(User user)

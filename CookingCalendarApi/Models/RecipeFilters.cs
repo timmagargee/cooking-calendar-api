@@ -17,18 +17,25 @@
     public class RecipeSummary
     {
         public RecipeSummary() { }
-        public RecipeSummary(int id, string name, IEnumerable<string> tags, IEnumerable<string> ingredients)
+
+        public RecipeSummary(int id, string name, IEnumerable<string> tags, IEnumerable<string> ingredients, bool isVegetarian = false, bool isDairyFree = false, bool isGlutenFree = false)
         {
             Id = id;
             Name = name;
             Tags = tags;
             Ingredients = ingredients;
+            IsVegetarian = isVegetarian;
+            IsDairyFree = isDairyFree;
+            IsGlutenFree = isGlutenFree;
         }
 
         public int Id { get; set; }
         public string Name { get; set; }
         public IEnumerable<string> Tags { get; set; }
         public IEnumerable<string> Ingredients { get; set; }
+        public bool IsVegetarian { get; set; }
+        public bool IsDairyFree { get; set; }
+        public bool IsGlutenFree { get; set; }
     }
 
 }
