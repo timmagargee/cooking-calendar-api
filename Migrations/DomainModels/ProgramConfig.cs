@@ -2,6 +2,6 @@
 {
     public class ProgramConfig
     {
-        public SqlServerConfig Db { get; set; }
+        public string ConnectionString { get; set; }
     }
 }

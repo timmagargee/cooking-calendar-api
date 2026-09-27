@@ -14,8 +14,8 @@ namespace CookingCalendarApi.Repositories
     }
     public class SettingsRepository: ISettingsRepository
     {
-        private readonly SqlServerConfig _sqlConfig;
-        public SettingsRepository(SqlServerConfig sqlConfig)
+        private readonly AppConfig _sqlConfig;
+        public SettingsRepository(AppConfig sqlConfig)
         {
             _sqlConfig = sqlConfig;
         }

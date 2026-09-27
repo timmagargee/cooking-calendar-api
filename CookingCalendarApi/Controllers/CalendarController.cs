@@ -25,7 +25,7 @@ namespace CookingCalendarApi.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GetCalendar()
         {
-            return Ok(await _calendarRepository.GetCalendar(User.GetUserId()));
+            return Ok(await _calendarRepository.GetCalendar());
         }
 
         [HttpGet("all/meals")]
@@ -36,7 +36,7 @@ namespace CookingCalendarApi.Controllers
                 return BadRequest("Start date must come before end date");
             }
 
-            return Ok(await _calendarRepository.GetAllMealsInRange(User.GetUserId(), filters));
+            return Ok(await _calendarRepository.GetAllMealsInRange(filters));
         }
 
         [HttpGet("{calendarId}/meals")]
@@ -60,11 +60,10 @@ namespace CookingCalendarApi.Controllers
                 return BadRequest("Start date must come before end date");
             }
 
-            var userId = User.GetUserId();
-            var cal = await _calendarRepository.GetCalendar(userId);
+            var cal = await _calendarRepository.GetCalendar();
 
             var mealAssigner = new MealAssigner(
-                await _recipeRepository.GetRecipesForAssignment(userId, filters.StartDate),
+                await _recipeRepository.GetRecipesForAssignment(filters.StartDate),
                 await _calendarRepository.GetCalendarMeals(calendarId, filters),
                 cal.Categories
             );
@@ -84,7 +83,7 @@ namespace CookingCalendarApi.Controllers
             {
                 return BadRequest("RecipeId is required");
             }
-            await _calendarRepository.AssignRecipeToDate(meal, User.GetUserId());
+            await _calendarRepository.AssignRecipeToDate(meal);
             return NoContent();
         }
 

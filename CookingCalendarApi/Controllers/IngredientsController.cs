@@ -9,7 +9,6 @@ namespace CookingCalendarApi.Controllers
 {
     [ApiController]
     [Route("ingredients")]
-    [Authorize]
     public class IngredientsController : ControllerBase
     {
         private readonly IIngredientRepository _ingredientRepository;
@@ -22,7 +21,7 @@ namespace CookingCalendarApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetIngredients()
         {
-            return Ok(await _ingredientRepository.GetIngredients(User.GetUserId()));
+            return Ok(await _ingredientRepository.GetIngredients());
         }
 
 
@@ -31,14 +30,7 @@ namespace CookingCalendarApi.Controllers
         {
             ing.TrimAllStrings();
             var id = await _ingredientRepository.AddIngredient(ing);
-            await _ingredientRepository.AddUserIngredient(User.GetUserId(), id);
             return Ok(id);
-        }
-
-        [HttpPost("user")]
-        public async Task<IActionResult> CreateUserIngredient([FromBody] IdDto dto)
-        {
-            return Ok(await _ingredientRepository.AddUserIngredient(User.GetUserId(), dto.Id));
         }
     }
 }

@@ -7,31 +7,25 @@ namespace CookingCalendarApi.Repositories
 {
     public interface IIngredientRepository
     {
-        Task<IEnumerable<IngredientBase>> GetIngredients(int userId);
+        Task<IEnumerable<IngredientBase>> GetIngredients();
         Task<int> AddIngredient(Ingredient ing);
-        Task<int> AddUserIngredient(int userId, int ingedientId);
     }
     public class IngredientRepository : IIngredientRepository
     {
-        private readonly SqlServerConfig _sqlConfig;
-        public IngredientRepository(SqlServerConfig sqlConfig)
+        private readonly AppConfig _sqlConfig;
+        public IngredientRepository(AppConfig sqlConfig)
         {
             _sqlConfig = sqlConfig;
         }
 
-        public async Task<IEnumerable<IngredientBase>> GetIngredients(int userId)
+        public async Task<IEnumerable<IngredientBase>> GetIngredients()
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             return await conn.QueryAsync<IngredientBase>(@"
-                SELECT ui.[Id] AS [UserIngredientId]
-                    , i.[Id]
+                SELECT i.[Id]
 	                , i.[Name]
-                FROM [dbo].[Ingredients] i
-                LEFT  JOIN [dbo].[UserIngredients] ui ON i.[Id] = ui.[IngredientId]
-                WHERE i.[isUserMade] = 0 OR ui.[UserId] = @UserId
-                ORDER BY ui.[id]"
-                , new { userId }
+                FROM [dbo].[Ingredients] i"
             );
         }
 
@@ -45,33 +39,14 @@ namespace CookingCalendarApi.Repositories
 	                , [isMeat]
 	                , [isDairy]
 	                , [isGluten]
-	                , [isUserMade]
                 ) OUTPUT inserted.id
                 VALUES (
                     @Name
 	                , @isMeat
 	                , @isDairy
 	                , @isGluten
-	                , 1
                 ); "
                 , new { ing.Name, ing.IsMeat, ing.IsDairy, ing.IsGluten }
-            );
-        }
-
-        public async Task<int> AddUserIngredient(int userId, int ingredientId)
-        {
-            using var conn = new SqlConnection(_sqlConfig.ConnectionString);
-
-            return await conn.QuerySingleAsync<int>(@"
-                INSERT INTO UserIngredients (
-	                [UserId]
-	                , [IngredientId]
-                ) OUTPUT inserted.id
-                VALUES (
-                    @UserId
-	                , @IngredientId
-                ); "
-                , new { userId, ingredientId }
             );
         }
     }

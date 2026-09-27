@@ -9,7 +9,6 @@ namespace CookingCalendarApi.Controllers
 {
     [ApiController]
     [Route("recipes")]
-    [Authorize]
     public class RecipesController : ControllerBase
     {
         private readonly IRecipeRepository _recipeRepository;
@@ -63,7 +62,7 @@ namespace CookingCalendarApi.Controllers
 
                 recipe.TrimAllStrings();
 
-                return Created(nameof(GetRecipe), await _recipeRepository.AddRecipe(recipe, User.GetUserId()));
+                return Created(nameof(GetRecipe), await _recipeRepository.AddRecipe(recipe));
             }
             catch (InvalidDataException)
             {
@@ -80,7 +79,7 @@ namespace CookingCalendarApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetFilteredRecipes([FromQuery] RecipeFilters filters)
         {
-            return Ok(await _recipeRepository.GetRecipes(User.GetUserId()));
+            return Ok(await _recipeRepository.GetRecipes());
         }
 
         [HttpPut("{recipeId}")]
@@ -93,13 +92,13 @@ namespace CookingCalendarApi.Controllers
         [HttpGet("tags")]
         public async Task<IActionResult> GetTags()
         {
-            return Ok(await _recipeRepository.GetTags(User.GetUserId()));
+            return Ok(await _recipeRepository.GetTags());
         }
 
         [HttpPost("tags")]
         public async Task<IActionResult> CreateTag([FromBody] NewTagDto tag)
         {
-            return Ok(await _recipeRepository.CreateTag(tag, User.GetUserId()));
+            return Ok(await _recipeRepository.CreateTag(tag));
         }
 
         [HttpDelete("{recipeId}")]

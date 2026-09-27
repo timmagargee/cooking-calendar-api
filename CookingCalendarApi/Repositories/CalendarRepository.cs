@@ -10,44 +10,46 @@ namespace CookingCalendarApi.Repositories
     public interface ICalendarRepository
     {
         Task<IEnumerable<MealDto>> GetCalendarMealDtos(int calendarId, DateFilter filters);
-        Task<CalendarDto> GetCalendar(int userId);
-        Task CreateNewCalendar(int userId);
+        Task<CalendarDto> GetCalendar();
+        Task CreateNewCalendar();
         Task UpdateCategory(Category category);
-        Task AssignRecipeToDate(AssignMealDto meal, int userId);
+        Task AssignRecipeToDate(AssignMealDto meal);
         Task<IEnumerable<Meal>> GetCalendarMeals(int calendarId, DateFilter filters);
-        Task<IEnumerable<MealDto>> GetAllMealsInRange(int userId, DateFilter filters);
+        Task<IEnumerable<MealDto>> GetAllMealsInRange(DateFilter filters);
         Task AddMeals(IEnumerable<Meal> meals, int calendarId);
         Task UpdateMeals(IEnumerable<Meal> meals);
     }
     public class CalendarRepository : ICalendarRepository
     {
-        private readonly SqlServerConfig _sqlConfig;
-        public CalendarRepository(SqlServerConfig sqlConfig)
+        private readonly AppConfig _sqlConfig;
+        public CalendarRepository(AppConfig sqlConfig)
         {
             _sqlConfig = sqlConfig;
         }
-        public async Task<CalendarDto?> GetCalendar(int userId)
+        public async Task<CalendarDto?> GetCalendar()
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             var multi = await conn.QueryMultipleAsync(@"           
                 SELECT [Id], [LastGenerated] 
                 INTO #TT
-                FROM [dbo].[Calendars]
-                WHERE UserId = @UserId;
+                FROM [dbo].[Calendars];
 
                 SELECT * FROM #TT;
 
                 SELECT cc.* 
                 FROM [dbo].[CalendarCategories] cc
                 INNER JOIN #TT c ON c.[Id] = cc.[CalendarId];"
-                , new { UserId = userId }
             );
 
             var calendar = multi.ReadFirstOrDefault<CalendarDto>();
             if (calendar != null)
             {
                 calendar.Categories = multi.Read<Category>();
+            }else
+            {
+                await CreateNewCalendar();
+                return await GetCalendar();
             }
             return calendar;
         }
@@ -80,7 +82,7 @@ namespace CookingCalendarApi.Repositories
             return meals.Select(x => new MealDto() { Id = x.Id, IsUserAssigned = x.IsUserAssigned, MealDate = x.MealDate, Recipe = recipes.First(y => y.Id == x.RecipeId) });
         }
 
-        public async Task<IEnumerable<MealDto>> GetAllMealsInRange(int userId, DateFilter filters)
+        public async Task<IEnumerable<MealDto>> GetAllMealsInRange(DateFilter filters)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
@@ -89,8 +91,7 @@ namespace CookingCalendarApi.Repositories
                 INTO #TT
                 FROM [dbo].[CalendarMeals] cm
                 INNER JOIN [dbo].[Calendars] c ON c.[Id] = cm.[CalendarId]
-                WHERE c.[UserId] = @userId 
-                    AND cm.MealDate >= @StartDate
+                WHERE cm.MealDate >= @StartDate
                     AND cm.MealDate <= @EndDate;
                 
                 SELECT * FROM #TT;
@@ -110,10 +111,9 @@ namespace CookingCalendarApi.Repositories
 
                 SELECT ri.[RecipeId], i.[Name], ri.[SortOrder]
                 FROM [dbo].[RecipeIngredients] ri
-                INNER JOIN [dbo].[UserIngredients] ui ON ri.[IngredientId] = ui.[Id]
-                INNER JOIN [dbo].[Ingredients] i ON ui.[IngredientId] = i.[Id]
+                INNER JOIN [dbo].[Ingredients] i ON ri.[IngredientId] = i.[Id]
                 WHERE ri.[RecipeId] IN (SELECT [Id] FROM #RTT);"
-                , new { userId, StartDate = filters.StartDate.Date, EndDate = filters.EndDate.Date }
+                , new { StartDate = filters.StartDate.Date, EndDate = filters.EndDate.Date }
             );
 
             var meals = multi.Read<Meal>();
@@ -145,7 +145,7 @@ namespace CookingCalendarApi.Repositories
             );
         }
 
-        public async Task CreateNewCalendar(int userId)
+        public async Task CreateNewCalendar()
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
             await conn.OpenAsync();
@@ -153,16 +153,13 @@ namespace CookingCalendarApi.Repositories
 
             var calId = await conn.QuerySingleAsync<int>(@"           
                 INSERT INTO [dbo].[Calendars] (
-	                [UserId]
-	                , [LastGenerated]
+	                [LastGenerated]
 	                , [isMonthDefaultView]
                 ) OUTPUT INSERTED.Id VALUES (
-	                @UserId
-	                , GETDATE()
+	                GETDATE()
 	                , 1
                 );"
-                , new { userId }
-                , trans
+                , transaction: trans
             );
 
             var valueString = string.Join(',',
@@ -200,7 +197,7 @@ namespace CookingCalendarApi.Repositories
             );
         }
 
-        public async Task AssignRecipeToDate(AssignMealDto meal, int userId)
+        public async Task AssignRecipeToDate(AssignMealDto meal)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
@@ -208,8 +205,7 @@ namespace CookingCalendarApi.Repositories
             {
                 var calendarId = await conn.QuerySingleAsync<int>(@$"
                     SELECT [Id]
-                    FROM [dbo].[Calendars]
-                    WHERE UserId = @UserId;", new { userId });
+                    FROM [dbo].[Calendars];");
 
                 var testId = await conn.QuerySingleOrDefaultAsync<int?>(@$"
                     SELECT [Id]

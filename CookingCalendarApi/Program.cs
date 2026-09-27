@@ -1,14 +1,7 @@
-using CookingCalendarApi.Interfaces;
 using CookingCalendarApi.Logging;
 using CookingCalendarApi.Repositories;
 using CookingCalendarApi.StartupClasses;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Identity.Client;
-using Microsoft.IdentityModel.Tokens;
-using Newtonsoft.Json;
 using Serilog;
-using System.Text;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -61,22 +54,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient();
 
 builder.Services.AddSingleton(appConfig);
-builder.Services.AddSingleton(appConfig.Db);
-
-builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-
-builder.Services.AddAuthentication()
-    .AddJwtBearer(options => {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            ValidateAudience = false,
-            ValidateIssuer = false,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-                appConfig.JwtToken
-            ))
-        };
-    });
 
 builder.Services.AddScoped<IRecipeRepository, RecipeRepository>();
 builder.Services.AddScoped<ICalendarRepository, CalendarRepository>();
@@ -84,7 +61,11 @@ builder.Services.AddScoped<IIngredientRepository, IngredientRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<IShoppingRepository, ShoppingRepository>();
 
-
+//builder.Services.AddAuthentication();
+builder.Services.AddAuthentication(o =>
+{
+    o.DefaultScheme = "";
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -94,13 +75,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+
+
 app.UseCors("API Policy");
 
 app.UseHttpsRedirection();
 
 
 
-app.UseAuthorization();
+//app.UseAuthorization();
 
 app.MapControllers();
 

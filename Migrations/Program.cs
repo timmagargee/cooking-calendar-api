@@ -43,12 +43,10 @@ namespace Migrations
         }
         private static void LoadConfig()
         {
-#pragma warning disable CS8601 // Possible null reference assignment.
             _config =new ConfigurationBuilder()
-                .AddJsonFile("appsettings.local.json", optional: true)
+                .AddJsonFile("appsettings.local.json")
                 .Build()
-                .Get<ProgramConfig>();
-#pragma warning restore CS8601 // Possible null reference assignment.
+                .Get<ProgramConfig>()!;
         }
 
         private static void CreateServiceCollection()
@@ -60,7 +58,7 @@ namespace Migrations
                         rb =>
                             rb
                                 .AddSqlServer()
-                                .WithGlobalConnectionString(_config.Db.ConnectionString)
+                                .WithGlobalConnectionString(_config.ConnectionString)
                                 .ScanIn(typeof(Program).Assembly).For.Migrations())
                     .AddLogging(lb => lb.AddFluentMigratorConsole())
                     .BuildServiceProvider();
@@ -68,6 +66,7 @@ namespace Migrations
 
         private static void UpdateDatabase()
         {
+            _services.GetService<IMigrationRunner>()!.ListMigrations();
              _services.GetService<IMigrationRunner>()!.MigrateUp();
         }
 
