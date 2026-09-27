@@ -25,7 +25,7 @@ namespace CookingCalendarApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetShoppingList()
         {
-            return Ok(await _shoppingRepository.GetUserShoppingList(User.GetUserId()));
+            return Ok(await _shoppingRepository.GetUserShoppingList());
         }
 
         [HttpPost]
@@ -40,13 +40,11 @@ namespace CookingCalendarApi.Controllers
             //    IngredientId = 1,
             //    Amount = new RecipeAmount(){ Amount = 1, Measurement = MeasurementType.Tsp}
             //} });
-            var userId = User.GetUserId();
-            var settings = await _settingsRepository.GetUserSettings(userId);
-            var ingredients = await _shoppingRepository.GetShoppingIngredients(userId, filters);
+            var ingredients = await _shoppingRepository.GetShoppingIngredients(filters);
             var generator = new ShoppingListGenerator(ingredients);
-            var items = generator.CreateShoppingList(settings.DefaultServings).OrderBy(x => x.IngredientId);
+            var items = generator.CreateShoppingList().OrderBy(x => x.IngredientId);
 
-            var shoppingListId = await _shoppingRepository.AddOrUpdateShoppingList(userId, filters);
+            var shoppingListId = await _shoppingRepository.AddOrUpdateShoppingList(filters);
             await _shoppingRepository.DeleteGeneratedItems(shoppingListId);
             await _shoppingRepository.AddGeneratedItems(shoppingListId, items);
             return Ok();

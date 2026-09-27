@@ -9,23 +9,23 @@ namespace CookingCalendarApi.Repositories
 {
     public interface IShoppingRepository
     {
-        Task<ShoppingListDto> GetUserShoppingList(int userId);
-        Task<IEnumerable<ShoppingIngredient>> GetShoppingIngredients(int userId, DateFilter dateFilters);
+        Task<ShoppingListDto> GetUserShoppingList();
+        Task<IEnumerable<ShoppingIngredient>> GetShoppingIngredients(DateFilter dateFilters);
         Task AddGeneratedItems(int shoppinglistId, IEnumerable<GeneratedItem> items);
-        Task<int> AddOrUpdateShoppingList(int userId, DateFilter dates);
+        Task<int> AddOrUpdateShoppingList(DateFilter dates);
         Task UpdateShoppingList(ShoppingListDto list);
         Task DeleteGeneratedItems(int shoppinglistId);
         Task ClearChecked(int shoppinglistId);
     }
     public class ShoppingRepository : IShoppingRepository
     {
-        private readonly SqlServerConfig _sqlConfig;
-        public ShoppingRepository(SqlServerConfig sqlConfig)
+        private readonly AppConfig _sqlConfig;
+        public ShoppingRepository(AppConfig sqlConfig)
         {
             _sqlConfig = sqlConfig;
         }
 
-        public async Task<ShoppingListDto> GetUserShoppingList(int userId)
+        public async Task<ShoppingListDto> GetUserShoppingList()
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
@@ -35,8 +35,7 @@ namespace CookingCalendarApi.Repositories
                     , [EndDate]
                     , [CreatedOn]
                 INTO #TT
-                  FROM [dbo].[ShoppingList]
-                  WHERE [UserId] = @UserId;
+                  FROM [dbo].[ShoppingList];
 
                 SELECT * FROM #TT;
 
@@ -47,8 +46,7 @@ namespace CookingCalendarApi.Repositories
                     , gi.[IsChecked]
                     , i.[Name]
                 FROM [dbo].[ShoppingListGeneratedItem] gi
-                INNER JOIN [dbo].[UserIngredients] ui ON gi.[IngredientId] = ui.[Id]
-                INNER JOIN [dbo].[Ingredients] i ON ui.[IngredientId] = i.[Id]
+                INNER JOIN [dbo].[Ingredients] i ON gi.[IngredientId] = i.[Id]
                 WHERE gi.[ShoppingListId] IN (SELECT [Id] FROM #TT);
 
                 SELECT ei.[Id]
@@ -57,7 +55,6 @@ namespace CookingCalendarApi.Repositories
                     , ei.[IsChecked]
                 FROM [dbo].[ShoppingListEnteredItem] ei
                 WHERE ei.[ShoppingListId] IN (SELECT [Id] FROM #TT);"
-                , new { userId }
             );
 
             var shoppingList = multi.ReadSingleOrDefault<ShoppingListDto>();
@@ -69,11 +66,11 @@ namespace CookingCalendarApi.Repositories
             return shoppingList;
         }
 
-        public async Task<IEnumerable<ShoppingIngredient>> GetShoppingIngredients(int userId, DateFilter dateFilters)
+        public async Task<IEnumerable<ShoppingIngredient>> GetShoppingIngredients(DateFilter dateFilters)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
-            return await conn.QueryAsync<int, RecipeAmount, ShoppingIngredient>(@"
+            return await conn.QueryAsync<long, RecipeAmount, ShoppingIngredient>(@"
                 SELECT 
                       ri.[IngredientId]
                       , ri.[MeasurementId] AS [Measurement]
@@ -84,27 +81,25 @@ namespace CookingCalendarApi.Repositories
                 FROM [dbo].[RecipeIngredients] ri
                 INNER JOIN [dbo].[Recipes] r ON r.[Id] = ri.[RecipeId]
                 INNER JOIN [dbo].[CalendarMeals] cm ON r.[Id] = cm.[RecipeId]
-                WHERE r.[UserId] = @UserId
-	                AND cm.[MealDate] >= @StartDate 
+                WHERE cm.[MealDate] >= @StartDate 
 	                AND cm.[MealDate] <= @EndDate
                 ", (ingId, amount) =>
                 {
-                    return new ShoppingIngredient() { IngredientId = ingId, Amount = amount };
+                    return new ShoppingIngredient() { IngredientId = (int)ingId, Amount = amount };
                 }
-                , new { userId, StartDate = dateFilters.StartDate.Date, EndDate = dateFilters.EndDate.Date }
+                , new { StartDate = dateFilters.StartDate.Date, EndDate = dateFilters.EndDate.Date }
                 , splitOn: "Measurement"
             );
         }
 
-        public async Task<int> AddOrUpdateShoppingList(int userId, DateFilter dates)
+        public async Task<int> AddOrUpdateShoppingList(DateFilter dates)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             var id = await conn.QuerySingleOrDefaultAsync<int?>(@"
             SELECT [Id]
-            FROM [dbo].[ShoppingList]
-            WHERE [UserId] = @UserId;
-            ", new { userId });
+            FROM [dbo].[ShoppingList];
+            ");
 
             if (id != null)
             {
@@ -120,14 +115,12 @@ namespace CookingCalendarApi.Repositories
 
             return await conn.QuerySingleAsync<int>(@"
             INSERT INTO [dbo].[ShoppingList] (
-                [UserId]
-                , [StartDate]
+                [StartDate]
                 , [EndDate]
             ) OUTPUT INSERTED.Id VALUES (
-                @UserId
-                , @StartDate
+                @StartDate
                 , @EndDate 
-            );", new { userId, dates.StartDate, dates.EndDate }
+            );", new { dates.StartDate, dates.EndDate }
             );
         }
 

@@ -14,7 +14,7 @@ namespace CookingCalendarApi.Utilities
 
         public List<ShoppingIngredient> Ingredients { get; set; }
 
-        public IEnumerable<GeneratedItem> CreateShoppingList(int? servings)
+        public IEnumerable<GeneratedItem> CreateShoppingList(int? servings = 4)
         {
             var items = new List<GeneratedItem>();
 

@@ -11,36 +11,34 @@ namespace CookingCalendarApi.Repositories
 {
     public interface IRecipeRepository
     {
-        Task<int> AddRecipe(NewRecipe recipe, int userId);
+        Task<int> AddRecipe(NewRecipe recipe);
         Task<Recipe> GetRecipe(int recipeId);
-        Task<IEnumerable<RecipeSummary>> GetRecipes(int userId);
+        Task<IEnumerable<RecipeSummary>> GetRecipes();
 
-        Task<int> CreateTag(NewTagDto tag, int userId);
-        Task<IEnumerable<IdNameDto>> GetTags(int userId);
+        Task<int> CreateTag(NewTagDto tag);
+        Task<IEnumerable<IdNameDto>> GetTags();
         Task UpdateRecipe(Recipe recipe);
         Task DeleteRecipe(int id);
-        Task<IEnumerable<RecipeForAssignment>> GetRecipesForAssignment(int userId, DateTime startDate);
+        Task<IEnumerable<RecipeForAssignment>> GetRecipesForAssignment(DateTime startDate);
     }
 
     public class RecipeRepository : IRecipeRepository
     {
-        private readonly SqlServerConfig _sqlConfig;
-        public RecipeRepository(SqlServerConfig sqlConfig)
+        private readonly AppConfig _sqlConfig;
+        public RecipeRepository(AppConfig sqlConfig)
         {
             _sqlConfig = sqlConfig;
         }
 
-        public async Task<int> AddRecipe(NewRecipe recipe, int userId)
+        public async Task<int> AddRecipe(NewRecipe recipe)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             return await conn.QuerySingleAsync<int>(@"
-                INSERT INTO Recipes ([UserId], [Name], [AreMeasurementsStandard])
+                INSERT INTO Recipes ([Name], [AreMeasurementsStandard])
                 OUTPUT inserted.[Id]
-                VALUES (@UserId
-                    , @Name
-                    , (SELECT [isDefaultMeasurementStandard] FROM Users WHERE [Id] = @UserId));"
-                , new { userId, recipe.Name }
+                VALUES (@Name, 1);"
+                , new { recipe.Name }
             );
         }
 
@@ -52,7 +50,6 @@ namespace CookingCalendarApi.Repositories
                 SELECT [Id], [Name], [Description], [Servings], [AreMeasurementsStandard]
                 FROM [dbo].[Recipes]
                 WHERE [Id] = @RecipeId;
-
 
                 SELECT rt.[Id], rt.[TagId], rt.[SortOrder], t.[Name]
                 FROM [dbo].[RecipeTags] rt
@@ -69,8 +66,7 @@ namespace CookingCalendarApi.Repositories
 	                , i.[Name] AS [Ingredient]
 	                , m.[Id] AS [Measurement]
                 FROM [dbo].[RecipeIngredients] ri
-                INNER JOIN [dbo].[UserIngredients] ui ON ri.[IngredientId] = ui.[Id]
-                INNER JOIN [dbo].[Ingredients] i ON ui.[IngredientId] = i.[Id]
+                INNER JOIN [dbo].[Ingredients] i ON ri.[IngredientId] = i.[Id]
                 INNER JOIN [dbo].[Measurements] m ON ri.[MeasurementId] = m.[Id]
                 WHERE ri.[RecipeId] = @RecipeId;
 
@@ -87,7 +83,7 @@ namespace CookingCalendarApi.Repositories
             return recipe;
         }
 
-        public async Task<IEnumerable<RecipeSummary>> GetRecipes(int userId)
+        public async Task<IEnumerable<RecipeSummary>> GetRecipes()
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
@@ -95,8 +91,7 @@ namespace CookingCalendarApi.Repositories
                 SELECT [Id]
                       ,[Name]
                 INTO #TT
-                  FROM [dbo].[Recipes]
-                  WHERE [UserId] = @UserId;
+                  FROM [dbo].[Recipes];
 
                 SELECT * FROM #TT;
 
@@ -107,10 +102,8 @@ namespace CookingCalendarApi.Repositories
 
                 SELECT ri.[RecipeId], i.[Name], ri.[SortOrder], i.[isMeat], i.[isDairy], i.[isGluten]
                 FROM [dbo].[RecipeIngredients] ri
-                INNER JOIN [dbo].[UserIngredients] ui ON ri.[IngredientId] = ui.[Id]
-                INNER JOIN [dbo].[Ingredients] i ON ui.[IngredientId] = i.[Id]
+                INNER JOIN [dbo].[Ingredients] i ON ri.[IngredientId] = i.[Id]
                 WHERE ri.[RecipeId] IN (SELECT [Id] FROM #TT);"
-                , new { userId }
             );
 
             var baseRecipes = multi.Read<IdNameDto>();
@@ -132,7 +125,7 @@ namespace CookingCalendarApi.Repositories
             return recipes;
         }
 
-        public async Task<IEnumerable<RecipeForAssignment>> GetRecipesForAssignment(int userId, DateTime startDate)
+        public async Task<IEnumerable<RecipeForAssignment>> GetRecipesForAssignment(DateTime startDate)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
@@ -141,8 +134,7 @@ namespace CookingCalendarApi.Repositories
                 INTO #TT
                 FROM [dbo].[Recipes] r
                 LEFT JOIN [dbo].[CalendarMeals] cm ON cm.[recipeId] = r.[Id]     
-                WHERE [UserId] = @UserId 
-                    AND (cm.[Id] IS NULL OR cm.[IsUserAssigned] = 1 OR cm.[MealDate] < @StartDate)
+                WHERE (cm.[Id] IS NULL OR cm.[IsUserAssigned] = 1 OR cm.[MealDate] < @StartDate)
                 GROUP BY r.[Id];
 
                 SELECT * FROM #TT;
@@ -152,12 +144,10 @@ namespace CookingCalendarApi.Repositories
                 INNER JOIN [dbo].[Tags] t ON rt.[TagId] = t.[Id]
                 WHERE rt.RecipeId IN (SELECT [Id] FROM #TT);
 
-                SELECT ri.[RecipeId], ui.[Id]
+                SELECT ri.[RecipeId], ri.[IngredientId] 
                 FROM [dbo].[RecipeIngredients] ri
-                INNER JOIN [dbo].[UserIngredients] ui ON ri.[IngredientId] = ui.[Id]
-                INNER JOIN [dbo].[Ingredients] i ON ui.[IngredientId] = i.[Id]
                 WHERE ri.[RecipeId] IN (SELECT [Id] FROM #TT);"
-                , new { userId, startDate }
+                , new { startDate }
             );
 
             var recipes = multi.Read<RecipeForAssignment>().ToList();
@@ -246,28 +236,26 @@ namespace CookingCalendarApi.Repositories
         }
 
         #region Tags
-        public async Task<int> CreateTag(NewTagDto tag, int userId)
+        public async Task<int> CreateTag(NewTagDto tag)
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             return await conn.QueryFirstAsync<int>(@"
-                INSERT INTO Tags ([Name], UserId)
+                INSERT INTO Tags ([Name])
                 OUTPUT inserted.[Id]
-                VALUES (@Name, @UserId )"
-                , new { tag.Name, userId }
+                VALUES (@Name )"
+                , new { tag.Name }
             );
         }
 
-        public async Task<IEnumerable<IdNameDto>> GetTags(int userId)
+        public async Task<IEnumerable<IdNameDto>> GetTags()
         {
             using var conn = new SqlConnection(_sqlConfig.ConnectionString);
 
             return await conn.QueryAsync<IdNameDto>(@"
                 SELECT [Id]
                       ,[Name]
-                FROM [dbo].[Tags]
-                WHERE [UserId] = @UserId"
-                , new { userId }
+                FROM [dbo].[Tags]"
             );
         }
 

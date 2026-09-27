@@ -26,8 +26,7 @@ namespace CookingCalendarApi.StartupClasses
     }
     public class AppConfig
     {
-        public string JwtToken { get; set; }
         public AppLoggingConfig Logging { get; set; }
-        public SqlServerConfig Db { get; set; }
+        public string ConnectionString { get; set; }
     }
 }

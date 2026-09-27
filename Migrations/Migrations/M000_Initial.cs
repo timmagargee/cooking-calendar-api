@@ -1,4 +1,5 @@
 ﻿using FluentMigrator;
+using System.Data;
 
 namespace HubDatabaseMigrations.migrations
 {
@@ -7,140 +8,96 @@ namespace HubDatabaseMigrations.migrations
     {
         public override void Up()
         {
-			Execute.Sql(@"
-				CREATE TABLE Users (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					UserName nvarchar(32) NOT NULL,
-					PasswordHash nvarchar(4000) NOT NULL,
-					Salt uniqueIdentifier NOT NULL,
-					Email nvarchar(255) NOT NULL,
-					FirstName nvarchar(32) NOT NULL,
-					LastName nvarchar(32) NOT NULL,
-					isDefaultMeasurementStandard bit DEFAULT 1 NOT NULL,
-					IsDarkMode bit DEFAULT 0 NOT NULL
-				);
+            Create.Table("Measurements")
+                .WithColumn("Id").AsInt64().PrimaryKey()
+                .WithColumn("Name").AsString(64).NotNullable()
+                .WithColumn("IsStandard").AsBoolean().NotNullable();
 
-				CREATE TABLE Measurements (
-					Id int PRIMARY KEY,
-					[Name] nvarchar(64) NOT NULL,
-					isStandard bit NOT NULL
-				);
+            Create.Table("Ingredients")
+                .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+                .WithColumn("Name").AsString(64).NotNullable()
+                .WithColumn("IsMeat").AsBoolean().NotNullable().WithDefaultValue(false)
+                .WithColumn("IsDairy").AsBoolean().NotNullable().WithDefaultValue(false)
+                .WithColumn("isGluten").AsBoolean().NotNullable().WithDefaultValue(false);
 
-				CREATE TABLE Ingredients (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					isUserMade bit,
-					[Name] nvarchar(64) NOT NULL,
-					isMeat bit DEFAULT 0 NOT NULL,
-					isDairy bit DEFAULT 0 NOT NULL,
-					isGluten bit DEFAULT 0 NOT NULL
-				);
+            Create.Table("Recipes")
+                .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+                .WithColumn("Name").AsString(255).NotNullable()
+                .WithColumn("Description").AsString(4000).Nullable()
+                .WithColumn("Servings").AsInt16().NotNullable().WithDefaultValue(1)
+                .WithColumn("AreMeasurementsStandard").AsBoolean().NotNullable().WithDefaultValue(1);
 
-				CREATE TABLE UserIngredients (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					UserId int FOREIGN KEY REFERENCES Users(Id) NOT NULL,
-					IngredientId int FOREIGN KEY REFERENCES Ingredients(Id) NOT NULL
-				);
-
-				CREATE TABLE Recipes (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					UserId int FOREIGN KEY REFERENCES Users(Id) NOT NULL,
-					[Name] nvarchar(255) NOT NULL,
-					[Description] nvarchar(4000),
-					ServingSize tinyint NOT NULL
-				);
-
-				CREATE TABLE RecipeIngredients (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					RecipeId int FOREIGN KEY REFERENCES Recipes(Id) NOT NULL,
-					IngredientId int FOREIGN KEY REFERENCES UserIngredients(Id) NOT NULL,
-					MeasurementId int FOREIGN KEY REFERENCES Measurements(Id) NOT NULL,
-					SortOrder tinyint NOT NULL,
-					Amount float,
-					AmountNumerator int,
-					AmountDenominator int
-				);
-
-				CREATE TABLE Tags (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					UserId int FOREIGN KEY REFERENCES Users(Id) NOT NULL,
-					[Name] nvarchar(255) NOT NULL,
-				);
+            Create.Table("RecipeIngredients")
+                .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+                .WithColumn("RecipeId").AsInt64().NotNullable().ForeignKey("Recipes", "Id").OnDelete(Rule.Cascade)
+                .WithColumn("IngredientId").AsInt64().NotNullable().ForeignKey("Ingredients", "Id").OnDelete(Rule.Cascade)
+                .WithColumn("MeasurementId").AsInt64().NotNullable().ForeignKey("Measurements", "Id").OnDelete(Rule.Cascade)
+                .WithColumn("SortOrder").AsInt16().NotNullable()
+                .WithColumn("Amount").AsDouble().Nullable()
+                .WithColumn("AmountNumerator").AsInt16().Nullable()
+                .WithColumn("AmountDenominator").AsInt16().Nullable()
+                .WithColumn("Description").AsString(32).Nullable();
 
 
-				CREATE TABLE RecipeTags (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					RecipeId int FOREIGN KEY REFERENCES Recipes(Id) NOT NULL,
-					TagId int FOREIGN KEY REFERENCES Tags(Id) NOT NULL,
-					SortOrder tinyint 
-				);
+            Create.Table("Tags")
+                .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+                .WithColumn("Name").AsString(64).NotNullable();
 
-				CREATE TABLE Steps (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					RecipeId int FOREIGN KEY REFERENCES Recipes(Id) NOT NULL,
-					Step nvarchar(4000) NOT NULL,
-					SortOrder tinyint NOT NULL
-				);
+            Create.Table("RecipeTags")
+                .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+                .WithColumn("RecipeId").AsInt64().NotNullable().ForeignKey("Recipes", "Id").OnDelete(Rule.Cascade)
+                .WithColumn("TagId").AsInt64().NotNullable().ForeignKey("Tags", "Id").OnDelete(Rule.Cascade)
+                .WithColumn("SortOrder").AsInt16().NotNullable();
 
-				--CREATE TABLE StepRecipeIngredients (
-				--    Id int IDENTITY(1,1) PRIMARY KEY,
-				--	RecipeId int FOREIGN KEY REFERENCES Recipes(Id) NOT NULL,
-				--	StepNumber int,
-				--	IngredientNumber int,
-				--	AmountNumerator float,
-				--	AmountDenominator int
-				--);
+            Create.Table("Steps")
+                  .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+                  .WithColumn("RecipeId").AsInt64().NotNullable().ForeignKey("Recipes", "Id").OnDelete(Rule.Cascade)
+                  .WithColumn("Step").AsString(4000).NotNullable()
+                  .WithColumn("SortOrder").AsInt16().NotNullable();
 
+            Create.Table("Calendars")
+              .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+              .WithColumn("LastGenerated").AsDateTime().NotNullable().WithDefaultValue(DateTime.Now)
+              .WithColumn("isMonthDefaultView").AsBoolean().NotNullable().WithDefaultValue(0);
 
-				CREATE TABLE Calendars (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					UserId int FOREIGN KEY REFERENCES Users(Id) NOT NULL,
-					LastGenerated dateTime DEFAULT GETDATE() NOT NULL,
-					isMonthDefaultView bit DEFAULT 0 NOT NULL,
-				);
+            Create.Table("CalendarCategories")
+              .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+              .WithColumn("CalendarId").AsInt64().NotNullable().ForeignKey("Calendars", "Id").OnDelete(Rule.Cascade)
+              .WithColumn("DayOfWeek").AsInt16().NotNullable()
+              .WithColumn("Name").AsString(64).NotNullable()
+              .WithColumn("CategoryType").AsInt16().NotNullable()
+              .WithColumn("TagId").AsInt64().Nullable().ForeignKey("Tags", "Id")
+              .WithColumn("IngredientId").AsInt64().Nullable().ForeignKey("Ingredients", "Id");
 
-				CREATE TABLE CalendarCategories (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					CalendarId int FOREIGN KEY REFERENCES Calendars(Id) NOT NULL,
-					[DayOfWeek] tinyint NOT NULL,
-					[Name] nvarchar(255),
-					CategoryType tinyint NOT NULL,
-					TagId int FOREIGN KEY REFERENCES Tags(Id) NULL,
-					IngredientId int FOREIGN KEY REFERENCES UserIngredients(Id) NULL
-				);
+            Create.Table("CalendarMeals")
+              .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+              .WithColumn("CalendarId").AsInt64().NotNullable().ForeignKey("Calendars", "Id").OnDelete(Rule.Cascade)
+              .WithColumn("RecipeId").AsInt64().NotNullable().ForeignKey("Recipes", "Id")
+              .WithColumn("MealDate").AsDate().NotNullable()
+              .WithColumn("IsUserAssigned").AsBoolean().NotNullable().WithDefaultValue(false);
 
-				CREATE TABLE CalendarMeals (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					CalendarId int FOREIGN KEY REFERENCES Calendars(Id) NOT NULL,
-					RecipeId int FOREIGN KEY REFERENCES Recipes(Id) NOT NULL,
-					MealDate date NOT NULL,
-					IsUserAssigned bit DEFAULT 0 NOT NULL
-				);
+            Create.Table("ShoppingList")
+              .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+              .WithColumn("StartDate").AsDate().NotNullable()
+              .WithColumn("EndDate").AsDate().NotNullable()
+              .WithColumn("CreatedOn").AsDateTime().NotNullable().WithDefaultValue(DateTime.Now);
 
-				CREATE TABLE ShoppingList (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					UserId int FOREIGN KEY REFERENCES Users(Id) NOT NULL,
-					StartDate date NOT NULL,
-					EndDate date NOT NULL,
-					CreatedOn dateTime DEFAULT GETDATE() NOT NULL
-				);
+            Create.Table("ShoppingListGeneratedItem")
+              .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+              .WithColumn("ShoppingListId").AsInt64().NotNullable().ForeignKey("ShoppingList", "Id").OnDelete(Rule.Cascade)
+              .WithColumn("IngredientId").AsInt64().NotNullable().ForeignKey("Ingredients", "Id")
+              .WithColumn("MeasurementId").AsInt64().NotNullable().ForeignKey("Measurements", "Id")
+              .WithColumn("Amount").AsDouble().NotNullable()
+              .WithColumn("IsChecked").AsBoolean().NotNullable().WithDefaultValue(0);
 
-				CREATE TABLE ShoppingListGeneratedItem (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					ShoppingListId int FOREIGN KEY REFERENCES ShoppingList(Id) NOT NULL,
-					IngredientId int FOREIGN KEY REFERENCES UserIngredients(Id) NOT NULL,
-					MeasurementId int FOREIGN KEY REFERENCES Measurements(Id) NOT NULL,
-					Amount float NOT NULL,
-					IsChecked bit DEFAULT 0 NOT NULL
-				);
+            Create.Table("ShoppingListEnteredItem")
+              .WithColumn("Id").AsInt64().PrimaryKey().Identity()
+              .WithColumn("ShoppingListId").AsInt64().NotNullable().ForeignKey("ShoppingList", "Id").OnDelete(Rule.Cascade)
+              .WithColumn("Category").AsInt16().NotNullable()
+              .WithColumn("Name").AsString(64).NotNullable()
+              .WithColumn("IsChecked").AsBoolean().NotNullable().WithDefaultValue(0);
 
-				CREATE TABLE ShoppingListEnteredItem (
-					Id int IDENTITY(1,1) PRIMARY KEY,
-					ShoppingListId int FOREIGN KEY REFERENCES ShoppingList(Id) NOT NULL,
-					Category int NOT NULL,
-					Item nvarchar(64),
-					IsChecked bit DEFAULT 0 NOT NULL
-				);
-
+            Execute.Sql(@"
                 INSERT INTO [dbo].[Measurements] ([Id], [Name], [isStandard])
                 VALUES 
 	                ('0', 'Amount', 1),
@@ -164,12 +121,24 @@ namespace HubDatabaseMigrations.migrations
 	                ('105', 'CM', 0),
 	                ('106', 'M', 0),
 	                ('107', 'Celcius', 0);
-            "
-            );
-		}
+            ");
+        }
 
         public override void Down()
         {
+            Delete.Table("ShoppingListEnteredItem");
+            Delete.Table("ShoppingListGeneratedItem");
+            Delete.Table("ShoppingList");
+            Delete.Table("CalendarMeals");
+            Delete.Table("CalendarCategories");
+            Delete.Table("Calendars");
+            Delete.Table("Steps");
+            Delete.Table("RecipeTags");
+            Delete.Table("Tags");
+            Delete.Table("RecipeIngredients");
+            Delete.Table("Recipes");
+            Delete.Table("Ingredients");
+            Delete.Table("Measurements");
         }
     }
 }
